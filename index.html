@@ -359,48 +359,6 @@
     50% { box-shadow: 0 0 46px rgba(212,175,55,0.5), 0 10px 22px rgba(0,0,0,0.5); }
   }
 
-  #screenModeSelect {
-    align-items: center;
-    justify-content: center;
-    gap: 26px;
-    padding: 20px;
-  }
-
-  #screenTurnIntro {
-    align-items: center;
-    justify-content: center;
-    gap: 28px;
-    padding: 20px;
-  }
-
-  /* ---------- 모드 선택 버튼 ---------- */
-  .mode-picker {
-    display: flex;
-    flex-direction: column;
-    gap: 16px;
-    width: 100%;
-    max-width: 480px;
-  }
-  .mode-btn {
-    display: flex;
-    align-items: center;
-    gap: 18px;
-    padding: 20px 22px;
-    border-radius: 8px;
-    border: 1px solid rgba(212,175,55,0.4);
-    cursor: pointer;
-    text-align: left;
-    background: linear-gradient(to bottom, rgba(20,26,51,0.92), rgba(11,14,26,0.96));
-    box-shadow: 0 10px 26px rgba(0,0,0,0.5);
-    transition: transform 0.15s, box-shadow 0.2s, border-color 0.2s;
-  }
-  .mode-btn:active { transform: translateY(1px); }
-  .mode-btn:hover { box-shadow: 0 0 24px rgba(212,175,55,0.25), 0 10px 26px rgba(0,0,0,0.5); border-color: rgba(240,213,118,0.7); }
-  .mode-btn-icon { font-size: 36px; flex: none; line-height: 1; }
-  .mode-btn-text { display: flex; flex-direction: column; gap: 5px; }
-  .mode-btn-title { font-size: 17px; font-weight: 900; color: var(--paper); }
-  .mode-btn-sub { font-size: 13px; color: var(--paper-dim); line-height: 1.4; }
-
   .stage-tag {
     font-size: 12px;
     font-weight: 700;
@@ -1207,6 +1165,9 @@
     max-width: 480px;
   }
   .peek-grid .chip { width: 100%; aspect-ratio: 1; border-radius: 4px; }
+  .peek-edit { margin-top: 16px; padding-top: 14px; border-top: 1px dashed rgba(212,175,55,0.3); }
+  .peek-edit-label { font-size: 12px; color: var(--gold-bright); font-weight: 800; margin-bottom: 8px; }
+  #peekSlotRow { display: flex; justify-content: center; gap: 10px; }
 
   .coin-toast {
     position: fixed;
@@ -1291,42 +1252,7 @@
     <button class="home-start-btn" id="homeStartBtn">입 장 하 기</button>
   </div>
 
-  <!-- ========== 모드 선택 화면 ========== -->
-  <div class="screen" id="screenModeSelect">
-    <div class="select-heading">
-      <div class="stage-tag">나플라스 부스</div>
-      <h1>페니의 게임</h1>
-      <p>어떤 방식으로 즐기시겠어요?</p>
-    </div>
-    <div class="mode-picker">
-      <button class="mode-btn" id="modeAiBtn">
-        <span class="mode-btn-icon">🏺</span>
-        <span class="mode-btn-text">
-          <span class="mode-btn-title">나플라스 AI와 대결</span>
-          <span class="mode-btn-sub">내가 먼저 패턴을 고르면, AI가 이기는 패턴으로 맞서요</span>
-        </span>
-      </button>
-      <button class="mode-btn" id="modePvpBtn">
-        <span class="mode-btn-icon">🧑‍🤝‍🧑</span>
-        <span class="mode-btn-text">
-          <span class="mode-btn-title">1대1 대결 (사람 vs 사람)</span>
-          <span class="mode-btn-sub">한 명씩 순서대로 패턴을 고르고 대결해요</span>
-        </span>
-      </button>
-    </div>
-  </div>
-
-  <!-- ========== 1v1 차례 안내 화면 (패스 앤 플레이) ========== -->
-  <div class="screen" id="screenTurnIntro">
-    <div class="select-heading">
-      <div class="stage-tag" id="turnIntroTag">1대1 대결 · 1P</div>
-      <h1 id="turnIntroTitle">플레이어 1 차례</h1>
-      <p id="turnIntroSub">패턴을 정할 준비가 되면 아래 버튼을 눌러주세요</p>
-    </div>
-    <button class="main-btn" id="turnIntroBtn">시 작</button>
-  </div>
-
-  <!-- ========== 패턴 선택 화면 (AI 대결 / 1v1 공용) ========== -->
+  <!-- ========== 패턴 선택 화면 (AI 대결) ========== -->
   <div class="screen" id="screenSelect">
     <div class="select-heading">
       <div class="stage-tag" id="selStageTag">나플라스 AI 대결</div>
@@ -1369,6 +1295,14 @@
       <div class="peek-sub">지금 화면은 <b>나</b>한테만 보여요 — 옆 사람이 못 보게 가려주세요</div>
       <div class="peek-timer" id="peekTimer">5</div>
       <div class="peek-grid" id="peekGrid"></div>
+      <div class="peek-edit" id="peekEdit" hidden>
+        <div class="peek-edit-label">지금 바로 내 패턴을 바꿀 수 있어요 (탭해서 전환)</div>
+        <div class="slot-row" id="peekSlotRow">
+          <button class="slot-btn" data-slot="0" type="button">?</button>
+          <button class="slot-btn" data-slot="1" type="button">?</button>
+          <button class="slot-btn" data-slot="2" type="button">?</button>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -1437,17 +1371,6 @@
     </div>
   </div>
 
-  <!-- ========== 1대1: 코인 계정 소유자 선택 ========== -->
-  <div class="modal-overlay" id="pvpOwnerModal">
-    <div class="coin-gate-card">
-      <div class="coin-gate-icon">🎮</div>
-      <div class="coin-gate-title">누가 코인 계정으로 참가했나요?</div>
-      <p class="coin-gate-sub">이긴 사람에게 승리 보상을 지급하려면<br>참가비를 낸 사람이 1P인지 2P인지 알려주세요.</p>
-      <button class="coin-gate-btn" id="pvpOwner1Btn">저는 1P예요</button>
-      <button class="coin-gate-btn" id="pvpOwner2Btn" style="margin-top:8px;">저는 2P예요</button>
-      <button class="coin-gate-link" id="pvpOwnerSkipBtn">보상 없이 플레이</button>
-    </div>
-  </div>
 
   <!-- ========== 코인 결제 게이트 (입장 참가비) ========== -->
   <div class="modal-overlay" id="coinGate">

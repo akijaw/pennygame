@@ -30,7 +30,7 @@ module.exports = async function handler(req, res) {
     if (purpose === "entry") {
       coinAmount = Number(amount);
       if (!Number.isInteger(coinAmount) || coinAmount < 0) return json(res, 400, { message: "결제 금액은 0 이상의 정수여야 합니다." });
-      const entryPrice = Number(process.env.ENTRY_COIN_PRICE || 150);
+      const entryPrice = Number(process.env.ENTRY_COIN_PRICE || 500);
       if (coinAmount !== entryPrice) return json(res, 400, { message: `참가비는 ${entryPrice}코인입니다.` });
       title = "페니의 게임 참가비";
     } else {

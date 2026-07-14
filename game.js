@@ -25,7 +25,6 @@
     aiTricks: 0,
     busy: false,       // 트릭 연출 중 탭 잠금
     finished: false,
-    pvpCoinOwner: null, // "1" | "2" | null — 1v1에서 코인 계정(참가비 낸 사람)이 몇 P인지
     holdTimer: null,
     primaryAction: null
   };
@@ -51,6 +50,8 @@
     deckPreviewOverlay: document.getElementById("deckPreviewOverlay"),
     peekTimer: document.getElementById("peekTimer"),
     peekGrid: document.getElementById("peekGrid"),
+    peekEdit: document.getElementById("peekEdit"),
+    peekSlotBtns: Array.prototype.slice.call(document.querySelectorAll("#peekSlotRow .slot-btn")),
     statusFlip: document.getElementById("statusFlip"),
     revealRow: document.getElementById("revealRow"),
     revealZone: document.querySelector(".reveal-zone"),
@@ -68,18 +69,6 @@
     screenHome: document.getElementById("screenHome"),
     homeTitle: document.getElementById("homeTitle"),
     homeStartBtn: document.getElementById("homeStartBtn"),
-    screenModeSelect: document.getElementById("screenModeSelect"),
-    modeAiBtn: document.getElementById("modeAiBtn"),
-    modePvpBtn: document.getElementById("modePvpBtn"),
-    pvpOwnerModal: document.getElementById("pvpOwnerModal"),
-    pvpOwner1Btn: document.getElementById("pvpOwner1Btn"),
-    pvpOwner2Btn: document.getElementById("pvpOwner2Btn"),
-    pvpOwnerSkipBtn: document.getElementById("pvpOwnerSkipBtn"),
-    screenTurnIntro: document.getElementById("screenTurnIntro"),
-    turnIntroTag: document.getElementById("turnIntroTag"),
-    turnIntroTitle: document.getElementById("turnIntroTitle"),
-    turnIntroSub: document.getElementById("turnIntroSub"),
-    turnIntroBtn: document.getElementById("turnIntroBtn"),
     screenSelect: document.getElementById("screenSelect"),
     screenGame: document.getElementById("screenGame"),
     resultModal: document.getElementById("resultModal"),
@@ -258,7 +247,9 @@
     Sfx.flip();
     function proceed() {
       Sfx.startBgm();
-      showScreen("screenModeSelect");
+      state.mode = "pve";
+      state.stage = 1;
+      setupSelect();
     }
     // 참가비 결제 게이트가 있으면 결제 성공 후에만 입장. 없으면(오프라인 등) 바로 입장.
     if (typeof Penney.onEntryRequest === "function") {
@@ -267,49 +258,6 @@
       proceed();
     }
   });
-
-  el.modeAiBtn.addEventListener("click", function () {
-    Sfx.flip();
-    state.mode = "pve";
-    state.stage = 1;
-    setupSelect();
-  });
-  el.modePvpBtn.addEventListener("click", function () {
-    Sfx.flip();
-    state.mode = "pvp";
-    state.stage = 1;
-    if (el.pvpOwnerModal) {
-      el.pvpOwnerModal.classList.add("active");
-    } else {
-      state.pvpCoinOwner = null;
-      showPvpTurnIntro();
-    }
-  });
-
-  if (el.pvpOwner1Btn) {
-    el.pvpOwner1Btn.addEventListener("click", function () {
-      Sfx.flip();
-      state.pvpCoinOwner = "1";
-      el.pvpOwnerModal.classList.remove("active");
-      showPvpTurnIntro();
-    });
-  }
-  if (el.pvpOwner2Btn) {
-    el.pvpOwner2Btn.addEventListener("click", function () {
-      Sfx.flip();
-      state.pvpCoinOwner = "2";
-      el.pvpOwnerModal.classList.remove("active");
-      showPvpTurnIntro();
-    });
-  }
-  if (el.pvpOwnerSkipBtn) {
-    el.pvpOwnerSkipBtn.addEventListener("click", function () {
-      Sfx.flip();
-      state.pvpCoinOwner = null;
-      el.pvpOwnerModal.classList.remove("active");
-      showPvpTurnIntro();
-    });
-  }
 
   /* ================= 연출 헬퍼: 스파크 / 뱃지 임팩트 / 컨페티 ================= */
   function spawnDeckSpark() {
@@ -372,19 +320,8 @@
   // 콘웨이 알고리즘: 상대 패턴에 대한 최적 카운터
   function counterOf(p) { return [opp(p[1]), p[0], p[1]]; }
 
-  // 모드에 따른 표시 이름 (플레이어/AI ↔ 플레이어1/플레이어2)
-  // 1v1에서는 state.pattern/state.aiPattern이 스테이지에 따라
-  // 실제로 가리키는 사람이 바뀐다: 1P가 고르는 동안(stage1)은
-  // player슬롯=1P, 2P가 고르는 동안(stage2, 이후 게임/결과까지)은
-  // player슬롯=2P, ai슬롯=1P가 된다.
   function displayName(side) {
-    if (state.mode !== "pvp") {
-      return side === "player" ? "플레이어" : "나플라스 AI";
-    }
-    if (state.stage === 1) {
-      return side === "player" ? "플레이어 1" : "플레이어 2";
-    }
-    return side === "player" ? "플레이어 2" : "플레이어 1";
+    return side === "player" ? "플레이어" : "나플라스 AI";
   }
 
   function buildDeck() {
@@ -427,24 +364,12 @@
   }
 
   function showScreen(id) {
-    [el.screenHome, el.screenModeSelect, el.screenTurnIntro, el.screenSelect, el.screenGame].forEach(function (s) {
-      s.classList.toggle("active", s.id === id);
+    [el.screenHome, el.screenSelect, el.screenGame].forEach(function (s) {
+      if (s) s.classList.toggle("active", s.id === id);
     });
     el.scoreboard.classList.toggle("active", id === "screenGame");
-    // 홈 / 모드 선택 / 턴 안내 화면에서는 상단 플레이어·AI 배지를 숨긴다
-    el.topbar.classList.toggle("hidden", id === "screenHome" || id === "screenModeSelect" || id === "screenTurnIntro");
-  }
-
-  // 1v1 패스 앤 플레이: 각자의 차례가 시작되기 전 "OO 차례" 안내 화면을 보여준다.
-  // 버튼을 눌러야 실제 패턴 선택 화면(setupSelect)으로 넘어간다.
-  function showPvpTurnIntro() {
-    var n = state.stage === 1 ? "1" : "2";
-    el.turnIntroTag.textContent = "1대1 대결 · " + n + "P";
-    el.turnIntroTitle.textContent = "플레이어 " + n + " 차례";
-    el.turnIntroSub.textContent = n === "1"
-      ? "패턴을 정할 준비가 되면 아래 버튼을 눌러주세요"
-      : "1P는 화면을 봐서는 안 돼요! 준비되면 아래 버튼을 눌러주세요";
-    showScreen("screenTurnIntro");
+    // 홈 / 패턴 선택 화면에서는 상단 플레이어·AI 배지를 숨긴다
+    el.topbar.classList.toggle("hidden", id === "screenHome");
   }
 
   /* ================= 패턴 진행도 (실시간 매칭 표시) ================= */
@@ -473,16 +398,10 @@
         coach("reach", "양쪽 다 <b>리치</b>! 다음 카드 한 장에 점수가 걸렸어요");
       } else if (pk === 2) {
         flashReach("player");
-        var reachMsgP = state.mode === "pvp"
-          ? ("<b>" + displayName("player") + " 리치!</b> 다음 카드가 맞으면 1점!")
-          : "<b>리치</b>! 다음 카드가 맞으면 당신의 1점!";
-        coach("reach", reachMsgP);
+        coach("reach", "<b>리치</b>! 다음 카드가 맞으면 당신의 1점!");
       } else {
         flashReach("ai");
-        var reachMsgA = state.mode === "pvp"
-          ? ("상대가 <b>리치</b>... 다음 카드가 맞으면 " + displayName("ai") + "의 1점!")
-          : "AI가 <b>리치</b>... 다음 카드가 맞으면 AI의 1점!";
-        coach("reach", reachMsgA);
+        coach("reach", "AI가 <b>리치</b>... 다음 카드가 맞으면 AI의 1점!");
       }
     }
   }
@@ -513,58 +432,26 @@
     el.aiBadge.classList.remove("tracking", "reach");
     hideCoach();
 
-    var isPvp = state.mode === "pvp";
-
-    // 라벨 갱신 (플레이어 vs AI / 플레이어1 vs 플레이어2)
+    // 라벨 갱신
     el.playerLabel.textContent = displayName("player");
     el.aiLabel.textContent = displayName("ai");
-    // 1v1에서는 카드 더미 옆 이름표가 사람 헷갈리게 해서 숨김 (아이콘만 표시)
-    el.opponentName.textContent = isPvp ? "" : displayName("ai");
-    el.opponentName.style.display = isPvp ? "none" : "";
-    el.opponentFrame.textContent = isPvp ? "🧑" : "🏺";
+    el.opponentName.textContent = displayName("ai");
+    el.opponentFrame.textContent = "🏺";
     el.sbPlayerLabel.textContent = displayName("player");
     el.sbAiLabel.textContent = displayName("ai");
 
-    if (state.stage === 1) {
-      seenTips = {}; // 새 게임 = 안내 초기화
-      state.aiPattern = null;
-      // 패턴을 고르기 전에 미리 덱을 섞어둔다 — "카드 순서 보기"가 실제 순서를 보여줄 수 있도록.
-      state.deck = shuffle(buildDeck());
-      updatePeekButtons();
-      if (isPvp) {
-        el.stagePill.textContent = "1대1 대결 · 1P";
-        el.selStageTag.textContent = "1대1 대결 · 1P";
-        el.selTitle.textContent = "플레이어 1 차례";
-        el.selSub.textContent = "빨강/검정 3연속 패턴을 정하세요 — 다음에 플레이어 2가 반격합니다";
-        el.coinAdOffer.hidden = false;
-        el.coinAdReveal.hidden = true;
-        el.coinAdModal.classList.add("active");
-      } else {
-        el.stagePill.textContent = "나플라스 AI 대결";
-        el.selStageTag.textContent = "나플라스 AI 대결";
-        el.selTitle.textContent = "페니의 게임";
-        el.selSub.textContent = "빨강/검정 3연속 패턴을 고르고 나플라스 AI에 도전하세요";
-      }
-      el.ruleBox.hidden = false;
-      el.aiFirstBox.hidden = true;
-      renderChips(el.aiChips, [null, null, null]);
-    } else {
-      // 1v1 2P 전용 화면: 1P가 먼저 정한 패턴을 보고 카운터를 고름
-      // (pve는 STAGE 2가 없어 이 분기로 오지 않음)
-      el.stagePill.textContent = "1대1 대결 · 2P";
-      el.selStageTag.textContent = "1대1 대결 · 2P";
-      el.selTitle.textContent = "플레이어 2 차례";
-      el.selSub.textContent = "플레이어 1의 패턴을 보고, 그것을 이길 패턴을 고르세요";
-      el.afLabel.innerHTML = "<b>플레이어 1</b>이 먼저 이 패턴을 골랐습니다";
-      el.ruleBox.hidden = true;
-      el.aiFirstBox.hidden = false;
-      renderChips(el.aiFirstChips, state.aiPattern);
-      renderChips(el.aiChips, state.aiPattern);
-      el.coinAdOffer.hidden = false;
-      el.coinAdReveal.hidden = true;
-      el.coinAdModal.classList.add("active");
-      updatePeekButtons();
-    }
+    seenTips = {}; // 새 게임 = 안내 초기화
+    state.aiPattern = null;
+    // 패턴을 고르기 전에 미리 덱을 섞어둔다 — "카드 순서 보기"가 실제 순서를 보여줄 수 있도록.
+    state.deck = shuffle(buildDeck());
+    updatePeekButtons();
+    el.stagePill.textContent = "나플라스 AI 대결";
+    el.selStageTag.textContent = "나플라스 AI 대결";
+    el.selTitle.textContent = "페니의 게임";
+    el.selSub.textContent = "빨강/검정 3연속 패턴을 고르고 나플라스 AI에 도전하세요";
+    el.ruleBox.hidden = false;
+    el.aiFirstBox.hidden = true;
+    renderChips(el.aiChips, [null, null, null]);
 
     renderChips(el.playerChips, [null, null, null]);
     updatePickBtnState();
@@ -642,21 +529,9 @@
 
   function updatePickBtnState() {
     var complete = state.pattern.every(function (c) { return c !== null; });
-    var same = false;
-    if (complete && state.stage === 2 && state.aiPattern) {
-      same = state.pattern.join("") === state.aiPattern.join("");
-    }
-    el.pickWarn.textContent = same ? ("상대와 똑같은 패턴은 고를 수 없어요!") : "";
-    el.pickBtn.disabled = !complete || same;
-    if (!complete) {
-      el.pickBtn.textContent = "패턴을 모두 선택하세요";
-    } else if (same) {
-      el.pickBtn.textContent = "다른 패턴을 골라주세요";
-    } else if (state.mode === "pvp") {
-      el.pickBtn.textContent = state.stage === 1 ? "패턴 확정 → 2P 차례" : "대결 시작!";
-    } else {
-      el.pickBtn.textContent = "대결 시작!";
-    }
+    el.pickWarn.textContent = "";
+    el.pickBtn.disabled = !complete;
+    el.pickBtn.textContent = complete ? "대결 시작!" : "패턴을 모두 선택하세요";
   }
 
   el.slotBtns.forEach(function (btn) {
@@ -677,13 +552,6 @@
     Sfx.flip();
 
     if (state.stage === 1) {
-      if (state.mode === "pvp") {
-        // 1P 패턴 확정 → 2P 차례 안내 화면으로 (AI 연출 없음)
-        state.aiPattern = state.pattern.slice();
-        state.stage = 2;
-        showPvpTurnIntro();
-        return;
-      }
       // AI가 즉시 카운터를 계산 — 짧은 셔플 연출(1초)만 하고 시작
       state.aiPattern = counterOf(state.pattern);
       var flicks = 0;
@@ -754,6 +622,34 @@
   if (el.peekBtn) el.peekBtn.addEventListener("click", handlePeekClick);
   if (el.peekBtnGame) el.peekBtnGame.addEventListener("click", handlePeekClick);
 
+  // pve 전용: 사람이 고른 패턴은 항상 state.pattern에 들어있다.
+  function myPatternKey() {
+    return "pattern";
+  }
+
+  function renderPeekSlots(key) {
+    var pat = state[key] || [null, null, null];
+    el.peekSlotBtns.forEach(function (btn) {
+      var slot = parseInt(btn.getAttribute("data-slot"), 10);
+      var c = pat[slot];
+      btn.textContent = c || "?";
+      btn.className = "slot-btn " + (c ? c + " active" : "");
+    });
+  }
+
+  var peekEditKey = null;
+  el.peekSlotBtns.forEach(function (btn) {
+    btn.addEventListener("click", function () {
+      if (!peekEditKey) return;
+      var slot = parseInt(btn.getAttribute("data-slot"), 10);
+      var pat = state[peekEditKey];
+      var next = pat[slot] === "R" ? "B" : "R";
+      pat[slot] = next;
+      btn.textContent = next;
+      btn.className = "slot-btn " + next + " active";
+    });
+  });
+
   function showDeckPreview() {
     if (!el.deckPreviewOverlay || !state.deck || state.deck.length === 0) return;
     updatePeekButtons(); // 결제 중/직후 잠깐 잠금
@@ -767,9 +663,20 @@
       el.peekGrid.appendChild(chip);
     });
 
+    // 카드가 이미 넘어가고 있는 중(게임 화면)이면 그 자리에서 패턴을 바로 바꿀 수 있게 해준다.
+    var midRound = el.screenGame.classList.contains("active");
+    if (midRound && el.peekEdit) {
+      peekEditKey = myPatternKey();
+      renderPeekSlots(peekEditKey);
+      el.peekEdit.hidden = false;
+    } else if (el.peekEdit) {
+      peekEditKey = null;
+      el.peekEdit.hidden = true;
+    }
+
     el.deckPreviewOverlay.classList.add("active");
 
-    var secondsLeft = 5;
+    var secondsLeft = midRound ? 8 : 5; // 게임 중엔 탭할 시간이 필요해서 조금 더 준다
     el.peekTimer.textContent = String(secondsLeft);
     var ticker = setInterval(function () {
       secondsLeft -= 1;
@@ -777,7 +684,16 @@
         clearInterval(ticker);
         el.deckPreviewOverlay.classList.remove("active");
         updatePeekButtons();
-        coach("peekDone", "이제 패턴을 자유롭게 바꿀 수 있어요 — 방금 본 순서로 계산해보세요!", 4200);
+        if (peekEditKey) {
+          // 바뀐 패턴을 화면(칩/진행도)에 반영
+          renderChips(el.playerChips, state.pattern);
+          renderChips(el.aiChips, state.aiPattern);
+          updateProgressChips();
+          peekEditKey = null;
+          coach("peekEdited", "패턴이 바뀌었어요! 다음 카드부터 새 패턴으로 판정돼요.", 4200);
+        } else {
+          coach("peekDone", "이제 패턴을 자유롭게 바꿀 수 있어요 — 방금 본 순서로 계산해보세요!", 4200);
+        }
         return;
       }
       el.peekTimer.textContent = String(secondsLeft);
@@ -809,10 +725,6 @@
     el.scoreboard.classList.add("active");
     setStatus("덱을 탭해서 카드를 넘기세요!");
     showScreen("screenGame");
-
-    if (state.stage === 2 && state.mode === "pvp") {
-      coach("s2", "이제 진짜 대결! <b>상대보다 먼저</b> 패턴을 완성하면 트릭을 가져가요", 4500);
-    }
   }
 
   function updateTrickScore(bumpSide) {
@@ -928,10 +840,7 @@
     if (trick === "player") {
       coach("trick_p", "🎉 패턴 3연속 완성 = <b>1점</b>! 쌓인 카드는 치우고 <b>처음부터 다시</b> 세요");
     } else {
-      var trickAMsg = state.mode === "pvp"
-        ? "상대 패턴이 먼저 완성돼 <b>상대가 1점</b>. 카드를 치우고 새로 시작 — 아직 기회 많아요!"
-        : "AI 패턴이 먼저 완성돼 <b>AI가 1점</b>. 카드를 치우고 새로 시작 — 아직 기회 많아요!";
-      coach("trick_a", trickAMsg);
+      coach("trick_a", "AI 패턴이 먼저 완성돼 <b>AI가 1점</b>. 카드를 치우고 새로 시작 — 아직 기회 많아요!");
     }
     clearProgress();
 
@@ -989,67 +898,38 @@
     var p = state.playerTricks, a = state.aiTricks;
     var scoreText = "트릭 스코어  " + p + " : " + a + "  (" + displayName("player") + " : " + displayName("ai") + ")";
     var winner = p > a ? "player" : (a > p ? "ai" : "draw");
-
-    // pve: "player"가 곧 사람이라 그대로 승리 판정.
-    // pvp: state.pattern(=player측)은 실제로는 2P, state.aiPattern(=ai측)은 1P가 쓴다 —
-    // 코인 계정을 낸 쪽(pvpCoinOwner)이 이겼을 때만 보상 대상.
-    var rewardEligible = false;
-    if (state.mode === "pve") {
-      rewardEligible = winner === "player";
-    } else if (state.mode === "pvp" && state.pvpCoinOwner) {
-      var winnerSlot = winner === "player" ? "2" : (winner === "ai" ? "1" : null);
-      rewardEligible = winnerSlot !== null && winnerSlot === state.pvpCoinOwner;
-    }
+    var rewardEligible = winner === "player";
 
     el.resultScore.textContent = scoreText;
 
-    // 결과를 코인 게이트에 알림 (승리 + 보상 대상일 때만 지급 트리거)
+    // 결과를 코인 게이트에 알림 (승리 시 보상 지급 트리거)
     if (typeof Penney.onGameResult === "function") {
       Penney.onGameResult({ mode: state.mode, winner: winner, rewardEligible: rewardEligible });
     }
 
-    if (state.mode === "pvp") {
-      if (winner === "player") {
-        setResult("win", "🏆 플레이어 2 승리!",
-          "나중에 고른 패턴이 유리하다는 걸 제대로 보여줬어요!<br>다시 한 판 어때요?",
-          "다시 대결", true);
-      } else if (winner === "ai") {
-        setResult("win", "🏆 플레이어 1 승리!",
-          "먼저 고른 패턴으로도 이렇게 이길 수 있군요!<br>다시 한 판 어때요?",
-          "다시 대결", true);
-      } else {
-        setResult("", "무승부",
-          "한 끗 차이! 다시 붙어볼까요?",
-          "다시 대결", true);
-      }
+    if (winner === "ai") {
+      setResult("lose", "나플라스 AI 승리",
+        "사실 이 게임엔 <b>수학적인 비밀</b>이 있어요 — 나중에 패턴을 정하는 쪽이 유리하답니다.<br>다시 도전해 보세요!",
+        "다시 하기", false);
+      Sfx.lose();
+    } else if (winner === "player") {
+      setResult("win", "플레이어 승리!",
+        "확률상 불리한 게임에서 이겼어요, 대단한 행운입니다!<br>한 번 더 해볼까요?",
+        "다시 하기", true);
       Sfx.win();
-      state.primaryAction = function () { state.stage = 1; showPvpTurnIntro(); };
     } else {
-      // pve: 단순하게 한 판으로 끝
-      if (winner === "ai") {
-        setResult("lose", "나플라스 AI 승리",
-          "사실 이 게임엔 <b>수학적인 비밀</b>이 있어요 — 나중에 패턴을 정하는 쪽이 유리하답니다.<br>다시 도전해 보세요!",
-          "다시 하기", false);
-        Sfx.lose();
-      } else if (winner === "player") {
-        setResult("win", "플레이어 승리!",
-          "확률상 불리한 게임에서 이겼어요, 대단한 행운입니다!<br>한 번 더 해볼까요?",
-          "다시 하기", true);
-        Sfx.win();
-      } else {
-        setResult("", "무승부",
-          "아슬아슬했네요! 다시 붙어볼까요?",
-          "다시 하기", false);
-      }
-      state.primaryAction = function () { state.stage = 1; setupSelect(); };
+      setResult("", "무승부",
+        "아슬아슬했네요! 다시 붙어볼까요?",
+        "다시 하기", false);
     }
+    state.primaryAction = function () { state.stage = 1; setupSelect(); };
 
     el.resultCard.classList.remove("lose-shake");
-    if (winner === "ai" && state.mode !== "pvp") el.resultCard.classList.add("lose-shake");
+    if (winner === "ai") el.resultCard.classList.add("lose-shake");
 
     setTimeout(function () {
       el.resultModal.classList.add("active");
-      if (winner === "player" || (state.mode === "pvp" && winner === "ai")) spawnConfetti();
+      if (winner === "player") spawnConfetti();
     }, 500);
   }
 
@@ -1098,11 +978,6 @@
   el.coinAdRevealCloseBtn.addEventListener("click", function () {
     Sfx.flip();
     el.coinAdModal.classList.remove("active");
-  });
-
-  el.turnIntroBtn.addEventListener("click", function () {
-    Sfx.flip();
-    setupSelect();
   });
 
   window.addEventListener("resize", scrollRevealRow);
