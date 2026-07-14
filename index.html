@@ -1171,6 +1171,7 @@
   .peek-btn:active { transform: translateY(1px); }
   .peek-btn .pk-coin { font-size: 14px; }
   .peek-btn:disabled, .peek-btn.used { opacity: 0.45; cursor: not-allowed; filter: grayscale(0.4); }
+  .peek-btn-game { margin-top: 10px; font-size: 11.5px; padding: 7px 12px; }
 
   #deckPreviewOverlay {
     position: fixed; inset: 0; z-index: 500;
@@ -1355,7 +1356,7 @@
       <button class="main-btn" id="pickBtn" disabled>패턴을 모두 선택하세요</button>
       <div class="peek-row">
         <button class="peek-btn" id="peekBtn" type="button">
-          <span class="pk-coin">🪙</span><span>카드 순서 보기 (<span id="peekBtnPrice">50</span>코인, 5초)</span>
+          <span class="pk-coin">🪙</span><span>카드 순서 보기 (<span class="pk-price">30코인</span>, 5초)</span>
         </button>
       </div>
     </div>
@@ -1385,6 +1386,9 @@
         <button class="deck-btn idle" id="deckBtn" aria-label="카드 뒤집기"></button>
         <div class="deck-count" id="deckCount">52장 남음</div>
         <div class="tap-hint">탭! 탭! (꾹 누르면 연속으로 넘어가요)</div>
+        <button class="peek-btn peek-btn-game" id="peekBtnGame" type="button">
+          <span class="pk-coin">🪙</span><span>순서 보기 (<span class="pk-price">30코인</span>)</span>
+        </button>
       </div>
 
       <div class="v-divider"></div>
@@ -1430,6 +1434,18 @@
         <div id="coinAdRevealBody"></div>
         <button class="coin-ad-buy" id="coinAdRevealCloseBtn">알겠어요</button>
       </div>
+    </div>
+  </div>
+
+  <!-- ========== 1대1: 코인 계정 소유자 선택 ========== -->
+  <div class="modal-overlay" id="pvpOwnerModal">
+    <div class="coin-gate-card">
+      <div class="coin-gate-icon">🎮</div>
+      <div class="coin-gate-title">누가 코인 계정으로 참가했나요?</div>
+      <p class="coin-gate-sub">이긴 사람에게 승리 보상을 지급하려면<br>참가비를 낸 사람이 1P인지 2P인지 알려주세요.</p>
+      <button class="coin-gate-btn" id="pvpOwner1Btn">저는 1P예요</button>
+      <button class="coin-gate-btn" id="pvpOwner2Btn" style="margin-top:8px;">저는 2P예요</button>
+      <button class="coin-gate-link" id="pvpOwnerSkipBtn">보상 없이 플레이</button>
     </div>
   </div>
 

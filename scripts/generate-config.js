@@ -3,19 +3,19 @@ const path = require("path");
 
 // 서버 환경변수를 브라우저용 runtime-config.js로 굽습니다.
 // 비밀 값(API 키/서명 시크릿)은 절대 여기서 내보내지 않습니다.
-const entryCoinPrice = Number(process.env.ENTRY_COIN_PRICE || 100);
+const entryCoinPrice = Number(process.env.ENTRY_COIN_PRICE || 150);
 if (!Number.isInteger(entryCoinPrice) || entryCoinPrice < 0) {
   console.error("ENTRY_COIN_PRICE는 0 이상의 정수여야 합니다.");
   process.exit(1);
 }
-const winReward = Number(process.env.WIN_REWARD_COINS || 200);
+const winReward = Number(process.env.WIN_REWARD_COINS || 250);
 if (!Number.isInteger(winReward) || winReward < 0) {
   console.error("WIN_REWARD_COINS는 0 이상의 정수여야 합니다.");
   process.exit(1);
 }
-const peekCoinPrice = Number(process.env.PEEK_COIN_PRICE || 50);
-if (!Number.isInteger(peekCoinPrice) || peekCoinPrice < 0) {
-  console.error("PEEK_COIN_PRICE는 0 이상의 정수여야 합니다.");
+const peekCoinPriceBase = Number(process.env.PEEK_COIN_PRICE_BASE || 30);
+if (!Number.isInteger(peekCoinPriceBase) || peekCoinPriceBase < 0) {
+  console.error("PEEK_COIN_PRICE_BASE는 0 이상의 정수여야 합니다.");
   process.exit(1);
 }
 const allowTestNickname = process.env.ALLOW_TEST_NICKNAME === "true";
@@ -25,7 +25,7 @@ fs.writeFileSync(
   runtimePath,
   `export const ENTRY_COIN_PRICE = ${entryCoinPrice};\n` +
   `export const WIN_REWARD_COINS = ${winReward};\n` +
-  `export const PEEK_COIN_PRICE = ${peekCoinPrice};\n` +
+  `export const PEEK_COIN_PRICE_BASE = ${peekCoinPriceBase};\n` +
   `export const ALLOW_TEST_NICKNAME = ${allowTestNickname};\n`
 );
-console.log(`runtime-config.js generated at ${runtimePath} (entry=${entryCoinPrice}, win=${winReward}, peek=${peekCoinPrice}, test=${allowTestNickname})`);
+console.log(`runtime-config.js generated at ${runtimePath} (entry=${entryCoinPrice}, win=${winReward}, peekBase=${peekCoinPriceBase}, test=${allowTestNickname})`);

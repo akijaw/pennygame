@@ -25,7 +25,7 @@
     aiTricks: 0,
     busy: false,       // 트릭 연출 중 탭 잠금
     finished: false,
-    peeked: false,      // 이번 라운드에 카드 순서 보기를 이미 썼는지
+    pvpCoinOwner: null, // "1" | "2" | null — 1v1에서 코인 계정(참가비 낸 사람)이 몇 P인지
     holdTimer: null,
     primaryAction: null
   };
@@ -47,6 +47,7 @@
     pickWarn: document.getElementById("pickWarn"),
     pickBtn: document.getElementById("pickBtn"),
     peekBtn: document.getElementById("peekBtn"),
+    peekBtnGame: document.getElementById("peekBtnGame"),
     deckPreviewOverlay: document.getElementById("deckPreviewOverlay"),
     peekTimer: document.getElementById("peekTimer"),
     peekGrid: document.getElementById("peekGrid"),
@@ -70,6 +71,10 @@
     screenModeSelect: document.getElementById("screenModeSelect"),
     modeAiBtn: document.getElementById("modeAiBtn"),
     modePvpBtn: document.getElementById("modePvpBtn"),
+    pvpOwnerModal: document.getElementById("pvpOwnerModal"),
+    pvpOwner1Btn: document.getElementById("pvpOwner1Btn"),
+    pvpOwner2Btn: document.getElementById("pvpOwner2Btn"),
+    pvpOwnerSkipBtn: document.getElementById("pvpOwnerSkipBtn"),
     screenTurnIntro: document.getElementById("screenTurnIntro"),
     turnIntroTag: document.getElementById("turnIntroTag"),
     turnIntroTitle: document.getElementById("turnIntroTitle"),
@@ -273,8 +278,38 @@
     Sfx.flip();
     state.mode = "pvp";
     state.stage = 1;
-    showPvpTurnIntro();
+    if (el.pvpOwnerModal) {
+      el.pvpOwnerModal.classList.add("active");
+    } else {
+      state.pvpCoinOwner = null;
+      showPvpTurnIntro();
+    }
   });
+
+  if (el.pvpOwner1Btn) {
+    el.pvpOwner1Btn.addEventListener("click", function () {
+      Sfx.flip();
+      state.pvpCoinOwner = "1";
+      el.pvpOwnerModal.classList.remove("active");
+      showPvpTurnIntro();
+    });
+  }
+  if (el.pvpOwner2Btn) {
+    el.pvpOwner2Btn.addEventListener("click", function () {
+      Sfx.flip();
+      state.pvpCoinOwner = "2";
+      el.pvpOwnerModal.classList.remove("active");
+      showPvpTurnIntro();
+    });
+  }
+  if (el.pvpOwnerSkipBtn) {
+    el.pvpOwnerSkipBtn.addEventListener("click", function () {
+      Sfx.flip();
+      state.pvpCoinOwner = null;
+      el.pvpOwnerModal.classList.remove("active");
+      showPvpTurnIntro();
+    });
+  }
 
   /* ================= 연출 헬퍼: 스파크 / 뱃지 임팩트 / 컨페티 ================= */
   function spawnDeckSpark() {
@@ -495,8 +530,7 @@
       state.aiPattern = null;
       // 패턴을 고르기 전에 미리 덱을 섞어둔다 — "카드 순서 보기"가 실제 순서를 보여줄 수 있도록.
       state.deck = shuffle(buildDeck());
-      state.peeked = false;
-      if (el.peekBtn) { el.peekBtn.disabled = false; el.peekBtn.classList.remove("used"); }
+      updatePeekButtons();
       if (isPvp) {
         el.stagePill.textContent = "1대1 대결 · 1P";
         el.selStageTag.textContent = "1대1 대결 · 1P";
@@ -529,8 +563,7 @@
       el.coinAdOffer.hidden = false;
       el.coinAdReveal.hidden = true;
       el.coinAdModal.classList.add("active");
-      state.peeked = false;
-      if (el.peekBtn) { el.peekBtn.disabled = false; el.peekBtn.classList.remove("used"); }
+      updatePeekButtons();
     }
 
     renderChips(el.playerChips, [null, null, null]);
@@ -676,24 +709,55 @@
     }
   });
 
-  /* ================= 카드 순서 보기 (코인) ================= */
-  if (el.peekBtn) {
-    el.peekBtn.addEventListener("click", function () {
-      if (el.peekBtn.disabled || state.peeked) return;
-      if (typeof Penney.onPeekRequest === "function") {
-        Penney.onPeekRequest(function () { showDeckPreview(); });
-      } else {
-        // 결제 게이트가 없는 환경(로컬 미리보기 등)에서는 무료로 바로 보여준다.
-        showDeckPreview();
-      }
+  /* ================= 카드 순서 보기 (코인, 남은 장수에 따라 가격 상승) ================= */
+  // 서버(api/coin/payment-requests.js)의 계산식과 반드시 동일하게 유지할 것.
+  function peekPriceForRemaining(remaining) {
+    var base = (window.Penney && Penney.PEEK_PRICE_BASE) || 30;
+    var r = Math.max(0, Math.min(52, remaining));
+    var mult;
+    if (r > 40) mult = 1;
+    else if (r > 20) mult = 2;
+    else if (r > 8) mult = 4;
+    else mult = 8;
+    return base * mult;
+  }
+
+  function currentPeekPrice() {
+    var remaining = state.deck ? state.deck.length : 52;
+    return peekPriceForRemaining(remaining);
+  }
+
+  function updatePeekButtons() {
+    var price = currentPeekPrice();
+    var locked = state.busy || state.finished || !state.deck || state.deck.length === 0;
+    [el.peekBtn, el.peekBtnGame].forEach(function (btn) {
+      if (!btn) return;
+      btn.disabled = locked;
+      var priceEl = btn.querySelector(".pk-price");
+      if (priceEl) priceEl.textContent = price + "코인";
     });
   }
 
+  function handlePeekClick() {
+    if ((el.peekBtn && el.peekBtn.disabled) || (el.peekBtnGame && el.peekBtnGame.disabled)) return;
+    if (!state.deck || state.deck.length === 0) return;
+    var remaining = state.deck.length;
+    var price = peekPriceForRemaining(remaining);
+    if (typeof Penney.onPeekRequest === "function") {
+      Penney.onPeekRequest(remaining, price, function () { showDeckPreview(); });
+    } else {
+      // 결제 게이트가 없는 환경(로컬 미리보기 등)에서는 무료로 바로 보여준다.
+      showDeckPreview();
+    }
+  }
+
+  if (el.peekBtn) el.peekBtn.addEventListener("click", handlePeekClick);
+  if (el.peekBtnGame) el.peekBtnGame.addEventListener("click", handlePeekClick);
+
   function showDeckPreview() {
     if (!el.deckPreviewOverlay || !state.deck || state.deck.length === 0) return;
-    state.peeked = true;
-    el.peekBtn.disabled = true;
-    el.peekBtn.classList.add("used");
+    updatePeekButtons(); // 결제 중/직후 잠깐 잠금
+    [el.peekBtn, el.peekBtnGame].forEach(function (btn) { if (btn) btn.disabled = true; });
     Sfx.coin();
 
     el.peekGrid.innerHTML = "";
@@ -712,6 +776,7 @@
       if (secondsLeft <= 0) {
         clearInterval(ticker);
         el.deckPreviewOverlay.classList.remove("active");
+        updatePeekButtons();
         coach("peekDone", "이제 패턴을 자유롭게 바꿀 수 있어요 — 방금 본 순서로 계산해보세요!", 4200);
         return;
       }
@@ -789,6 +854,7 @@
     state.revealed.push(card);
     el.deckCount.textContent = state.deck.length + "장 남음";
     if (state.deck.length === 0) el.deckBtn.classList.add("empty");
+    updatePeekButtons();
 
     if (state.revealed.length === 1 && state.stage === 1) {
       coach("goal", "나온 카드 색이 패턴과 맞으면 위의 <b>칩이 빛나요</b>. 3연속 완성 = <b>1점</b>!");
@@ -845,6 +911,7 @@
 
   function collectTrick(trick) {
     state.busy = true;
+    updatePeekButtons();
     stopHold();
 
     var trickClass = trick === "player" ? "trick-player" : "trick-ai";
@@ -879,6 +946,7 @@
         el.revealZone.classList.remove("popping");
         scrollRevealRow();
         state.busy = false;
+        updatePeekButtons();
         if (state.deck.length === 0) {
           setTimeout(finishRound, 400);
         } else {
@@ -915,17 +983,29 @@
   function finishRound() {
     if (state.finished) return;
     state.finished = true;
+    updatePeekButtons();
     stopHold();
 
     var p = state.playerTricks, a = state.aiTricks;
     var scoreText = "트릭 스코어  " + p + " : " + a + "  (" + displayName("player") + " : " + displayName("ai") + ")";
     var winner = p > a ? "player" : (a > p ? "ai" : "draw");
 
+    // pve: "player"가 곧 사람이라 그대로 승리 판정.
+    // pvp: state.pattern(=player측)은 실제로는 2P, state.aiPattern(=ai측)은 1P가 쓴다 —
+    // 코인 계정을 낸 쪽(pvpCoinOwner)이 이겼을 때만 보상 대상.
+    var rewardEligible = false;
+    if (state.mode === "pve") {
+      rewardEligible = winner === "player";
+    } else if (state.mode === "pvp" && state.pvpCoinOwner) {
+      var winnerSlot = winner === "player" ? "2" : (winner === "ai" ? "1" : null);
+      rewardEligible = winnerSlot !== null && winnerSlot === state.pvpCoinOwner;
+    }
+
     el.resultScore.textContent = scoreText;
 
-    // 결과를 코인 게이트에 알림 (pve 승리 시 보상 지급 트리거)
+    // 결과를 코인 게이트에 알림 (승리 + 보상 대상일 때만 지급 트리거)
     if (typeof Penney.onGameResult === "function") {
-      Penney.onGameResult({ mode: state.mode, winner: winner });
+      Penney.onGameResult({ mode: state.mode, winner: winner, rewardEligible: rewardEligible });
     }
 
     if (state.mode === "pvp") {
@@ -1045,4 +1125,6 @@
 
   el.homeTitle.textContent = "페니의 게임";
   showScreen("screenHome");
+  Penney.refreshPeekPrice = updatePeekButtons;
+  updatePeekButtons();
 })();

@@ -15,8 +15,8 @@ const { enforceJsonRequest, enforceRateLimit, enforceSameOrigin, verifyPayload }
 const mockCompleted = new Map();
 
 function winReward() {
-  const value = Number(process.env.WIN_REWARD_COINS || 200);
-  return Number.isInteger(value) && value >= 0 ? value : 200;
+  const value = Number(process.env.WIN_REWARD_COINS || 250);
+  return Number.isInteger(value) && value >= 0 ? value : 250;
 }
 
 function checkedEntryToken(token) {

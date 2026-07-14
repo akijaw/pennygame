@@ -12,9 +12,9 @@
 | `NAPLACE_COIN_BASE_URL` | `https://naplace-coin.vercel.app/api/v1` | **localhost 금지** (배포에선 반드시 프로덕션 주소) |
 | `NAPLACE_COIN_API_KEY` | (발급받은 활성 키) | 서버 전용. 브라우저 노출 금지 |
 | `GAME_SIGNING_SECRET` | `openssl rand -base64 48` 결과 | 최소 32자 |
-| `ENTRY_COIN_PRICE` | `100` | 입장 참가비 |
-| `WIN_REWARD_COINS` | `200` | 승리 보상 |
-| `PEEK_COIN_PRICE` | `50` | 카드 순서 보기 1회 가격 |
+| `ENTRY_COIN_PRICE` | `150` | 입장 참가비 |
+| `WIN_REWARD_COINS` | `250` | 승리 보상 (AI 대결 또는 1v1에서 코인 계정 쪽 승리) |
+| `PEEK_COIN_PRICE_BASE` | `30` | 카드 순서 보기 기준가 (남은 장수에 따라 1~8배) |
 | `ALLOW_TEST_NICKNAME` | `false` | 로컬/프리뷰에서만 true |
 | `ALLOW_REAL_REWARDS` | `false` | 실제 보상 지급 스위치 (아래 참고) |
 

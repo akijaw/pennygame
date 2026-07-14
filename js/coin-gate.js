@@ -220,13 +220,14 @@ if (gate && els.studentId) {
     openGate(onSuccess);
   };
 
-  Penney.onGameResult = async function ({ mode, winner }) {
-    if (mode !== "pve" || winner !== "player" || !gameToken) return;
+  Penney.onGameResult = async function ({ rewardEligible, mode }) {
+    if (!rewardEligible || !gameToken) return;
     try {
       const res = await requestReward(gameToken, true);
       const amount = Number(res.amount) || 0;
       if (amount > 0) {
-        toast(`승리 보상 <span class="ct-coin">+${amount.toLocaleString()} 코인</span> 획득!`);
+        const label = mode === "pvp" ? "1대1 승리" : "AI 대결 승리";
+        toast(`${label} 보상 <span class="ct-coin">+${amount.toLocaleString()} 코인</span> 획득!`);
       }
     } catch { /* 보상 실패는 게임 흐름을 막지 않음 */ }
   };

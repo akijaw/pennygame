@@ -1,5 +1,5 @@
 import {
-  PEEK_PRICE,
+  PEEK_PRICE_BASE,
   PAYMENT_POLL_MS,
   getCoinStudent,
   createPeekPayment,
@@ -29,20 +29,22 @@ const els = {
   waitingMsg: $("peekGateWaitingMsg"),
   cancel: $("peekGateCancelBtn"),
   toast: $("coinToast"),
-  btnPrice: $("peekBtnPrice"),
 };
+
+// game.js가 요금표(peekPriceForRemaining)를 계산할 때 쓸 기준값을 공유하고,
+// 이미 그려둔 버튼 라벨을 실제 값으로 갱신한다.
+Penney.PEEK_PRICE_BASE = PEEK_PRICE_BASE;
+if (typeof Penney.refreshPeekPrice === "function") Penney.refreshPeekPrice();
 
 // 게이트에 필요한 DOM이 없으면 조용히 비활성화 — 이 경우 game.js가 무료 미리보기로 대체한다.
 if (gate && els.studentId) {
-  els.price.textContent = String(PEEK_PRICE);
-  els.payPrice.textContent = String(PEEK_PRICE);
-  if (els.btnPrice) els.btnPrice.textContent = String(PEEK_PRICE);
-
   let proceed = null;
   let student = null;
   let trackingToken = null;
   let pollTimer = null;
   let busy = false;
+  let currentRemaining = 52;
+  let currentPrice = PEEK_PRICE_BASE;
 
   function stopPoll() {
     if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
@@ -54,12 +56,20 @@ if (gate && els.studentId) {
     els.waiting.hidden = step !== "waiting";
   }
 
-  function openGate(onSuccess) {
+  function applyPriceLabels() {
+    els.price.textContent = String(currentPrice);
+    els.payPrice.textContent = String(currentPrice);
+  }
+
+  function openGate(remaining, price, onSuccess) {
     proceed = onSuccess;
+    currentRemaining = remaining;
+    currentPrice = price;
     trackingToken = null;
     busy = false;
     els.confirmMsg.textContent = "";
     els.confirmMsg.className = "coin-gate-msg";
+    applyPriceLabels();
     gate.classList.add("active");
 
     // 입장할 때 이미 학번을 확인했다면 다시 묻지 않고 바로 확인 화면으로.
@@ -106,9 +116,9 @@ if (gate && els.studentId) {
     els.student.innerHTML =
       `<div class="cg-name">${escapeHtml(student.name)} <span style="color:var(--paper-dim);font-weight:400;">(${escapeHtml(student.studentId)})</span></div>` +
       `<div class="cg-balance">보유 코인 <b>${Number(student.balance).toLocaleString()}</b></div>`;
-    const enough = student.balance >= PEEK_PRICE;
+    const enough = student.balance >= currentPrice;
     els.pay.disabled = !enough;
-    els.confirmMsg.textContent = enough ? "" : `잔액이 부족해요. 카드 순서 보기는 ${PEEK_PRICE}코인입니다.`;
+    els.confirmMsg.textContent = enough ? "" : `잔액이 부족해요. 지금은 ${currentPrice}코인이 필요해요.`;
     els.confirmMsg.className = "coin-gate-msg";
   }
 
@@ -145,7 +155,8 @@ if (gate && els.studentId) {
     els.confirmMsg.textContent = "결제 요청 중…";
     els.confirmMsg.className = "coin-gate-msg ok";
     try {
-      const res = await createPeekPayment(student.studentId);
+      // 실제 청구 금액은 서버가 remaining 값으로 다시 계산해서 확정한다.
+      const res = await createPeekPayment(student.studentId, currentRemaining);
       if (res.status === "approved") {
         approved();
         return;
@@ -196,7 +207,7 @@ if (gate && els.studentId) {
     trackingToken = null;
     stopPoll();
     gate.classList.remove("active");
-    toast(`카드 순서 공개 <span class="ct-coin">-${PEEK_PRICE.toLocaleString()} 코인</span>`);
+    toast(`카드 순서 공개 <span class="ct-coin">-${currentPrice.toLocaleString()} 코인</span>`);
     const go = proceed;
     proceed = null;
     if (typeof go === "function") go();
@@ -243,8 +254,8 @@ if (gate && els.studentId) {
   els.cancel.addEventListener("click", cancel);
   els.close.addEventListener("click", closeGate);
 
-  // 게임 훅 등록
-  Penney.onPeekRequest = function (onSuccess) {
-    openGate(onSuccess);
+  // 게임 훅 등록: game.js가 (remaining, price, onSuccess)로 호출한다.
+  Penney.onPeekRequest = function (remaining, price, onSuccess) {
+    openGate(remaining, price, onSuccess);
   };
 }
