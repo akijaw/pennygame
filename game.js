@@ -67,6 +67,7 @@
     aiLabel: document.getElementById("aiLabel"),
     sbPlayerLabel: document.getElementById("sbPlayerLabel"),
     sbAiLabel: document.getElementById("sbAiLabel"),
+    afLabel: document.getElementById("afLabel"),
     screenHome: document.getElementById("screenHome"),
     homeTitle: document.getElementById("homeTitle"),
     homeStartBtn: document.getElementById("homeStartBtn"),
