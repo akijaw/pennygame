@@ -13,6 +13,11 @@ if (!Number.isInteger(winReward) || winReward < 0) {
   console.error("WIN_REWARD_COINS는 0 이상의 정수여야 합니다.");
   process.exit(1);
 }
+const peekCoinPrice = Number(process.env.PEEK_COIN_PRICE || 50);
+if (!Number.isInteger(peekCoinPrice) || peekCoinPrice < 0) {
+  console.error("PEEK_COIN_PRICE는 0 이상의 정수여야 합니다.");
+  process.exit(1);
+}
 const allowTestNickname = process.env.ALLOW_TEST_NICKNAME === "true";
 
 const runtimePath = path.join(__dirname, "..", "js", "runtime-config.js");
@@ -20,6 +25,7 @@ fs.writeFileSync(
   runtimePath,
   `export const ENTRY_COIN_PRICE = ${entryCoinPrice};\n` +
   `export const WIN_REWARD_COINS = ${winReward};\n` +
+  `export const PEEK_COIN_PRICE = ${peekCoinPrice};\n` +
   `export const ALLOW_TEST_NICKNAME = ${allowTestNickname};\n`
 );
-console.log(`runtime-config.js generated at ${runtimePath} (entry=${entryCoinPrice}, win=${winReward}, test=${allowTestNickname})`);
+console.log(`runtime-config.js generated at ${runtimePath} (entry=${entryCoinPrice}, win=${winReward}, peek=${peekCoinPrice}, test=${allowTestNickname})`);

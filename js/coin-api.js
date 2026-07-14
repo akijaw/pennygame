@@ -1,4 +1,4 @@
-import { COIN_PRICE, WIN_REWARD, PAYMENT_POLL_MS, ALLOW_TEST_NICKNAME } from "./coin-config.js";
+import { COIN_PRICE, WIN_REWARD, PEEK_PRICE, PAYMENT_POLL_MS, ALLOW_TEST_NICKNAME } from "./coin-config.js";
 
 async function api(path, options = {}) {
   const res = await fetch(path, {
@@ -10,7 +10,7 @@ async function api(path, options = {}) {
   return data;
 }
 
-export { COIN_PRICE, WIN_REWARD, PAYMENT_POLL_MS, ALLOW_TEST_NICKNAME };
+export { COIN_PRICE, WIN_REWARD, PEEK_PRICE, PAYMENT_POLL_MS, ALLOW_TEST_NICKNAME };
 
 export function getCoinStudent(studentId) {
   return api(`/api/coin/student?studentId=${encodeURIComponent(studentId)}`);
@@ -21,6 +21,10 @@ export function createPaymentRequest(studentId, amount = COIN_PRICE, purpose = "
     method: "POST",
     body: JSON.stringify({ studentId, amount, purpose }),
   });
+}
+
+export function createPeekPayment(studentId) {
+  return createPaymentRequest(studentId, PEEK_PRICE, "peek");
 }
 
 export function getPaymentStatus(trackingToken) {

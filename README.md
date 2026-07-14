@@ -10,6 +10,9 @@ MathTetris와 동일한 나플 코인 연동 구조를 사용합니다.
 - AI 대결(pve)에서 **승리하면 보상 코인**을 지급합니다(기본 200코인).
   - 승패는 아직 브라우저에서 계산되므로, 보상 실지급은 **기본 비활성화**(`ALLOW_REAL_REWARDS=false`)입니다.
   - 결제 1건(게임 토큰 jti)당 보상은 **최대 1회**만 지급되도록 서버에서 막습니다.
+- 패턴 선택 화면의 **"카드 순서 보기"** 버튼으로 코인을 더 내면(기본 50코인), 셔플된 52장 전체 순서를 **본인 화면에만 5초간** 보여주고 그 뒤 패턴을 자유롭게 바꿀 수 있습니다.
+  - 입장 결제 때 확인한 학번을 재사용해 다시 묻지 않습니다.
+  - 라운드(1P/2P 각각)당 1회만 구매할 수 있고, 다음 라운드에서 다시 활성화됩니다.
 
 ## 파일 구조
 
@@ -46,7 +49,7 @@ vercel.json / package.json / .env.example
    - `NAPLACE_COIN_BASE_URL` = `https://naplace-coin.vercel.app/api/v1`
    - `NAPLACE_COIN_API_KEY` = 나플 코인 관리자에서 발급한 **활성** 부스 키
    - `GAME_SIGNING_SECRET` = 32자 이상 무작위 (`openssl rand -base64 48`)
-   - `ENTRY_COIN_PRICE` = `100`, `WIN_REWARD_COINS` = `200`
+   - `ENTRY_COIN_PRICE` = `100`, `WIN_REWARD_COINS` = `200`, `PEEK_COIN_PRICE` = `50`
    - `ALLOW_TEST_NICKNAME` = `false`, `ALLOW_REAL_REWARDS` = `false`
 3. 배포 후 홈 → 입장하기로 결제 흐름 확인.
 

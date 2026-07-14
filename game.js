@@ -25,6 +25,7 @@
     aiTricks: 0,
     busy: false,       // 트릭 연출 중 탭 잠금
     finished: false,
+    peeked: false,      // 이번 라운드에 카드 순서 보기를 이미 썼는지
     holdTimer: null,
     primaryAction: null
   };
@@ -45,6 +46,10 @@
     slotBtns: Array.prototype.slice.call(document.querySelectorAll("#mainSlotRow .slot-btn")),
     pickWarn: document.getElementById("pickWarn"),
     pickBtn: document.getElementById("pickBtn"),
+    peekBtn: document.getElementById("peekBtn"),
+    deckPreviewOverlay: document.getElementById("deckPreviewOverlay"),
+    peekTimer: document.getElementById("peekTimer"),
+    peekGrid: document.getElementById("peekGrid"),
     statusFlip: document.getElementById("statusFlip"),
     revealRow: document.getElementById("revealRow"),
     revealZone: document.querySelector(".reveal-zone"),
@@ -488,6 +493,10 @@
     if (state.stage === 1) {
       seenTips = {}; // 새 게임 = 안내 초기화
       state.aiPattern = null;
+      // 패턴을 고르기 전에 미리 덱을 섞어둔다 — "카드 순서 보기"가 실제 순서를 보여줄 수 있도록.
+      state.deck = shuffle(buildDeck());
+      state.peeked = false;
+      if (el.peekBtn) { el.peekBtn.disabled = false; el.peekBtn.classList.remove("used"); }
       if (isPvp) {
         el.stagePill.textContent = "1대1 대결 · 1P";
         el.selStageTag.textContent = "1대1 대결 · 1P";
@@ -520,6 +529,8 @@
       el.coinAdOffer.hidden = false;
       el.coinAdReveal.hidden = true;
       el.coinAdModal.classList.add("active");
+      state.peeked = false;
+      if (el.peekBtn) { el.peekBtn.disabled = false; el.peekBtn.classList.remove("used"); }
     }
 
     renderChips(el.playerChips, [null, null, null]);
@@ -665,9 +676,52 @@
     }
   });
 
+  /* ================= 카드 순서 보기 (코인) ================= */
+  if (el.peekBtn) {
+    el.peekBtn.addEventListener("click", function () {
+      if (el.peekBtn.disabled || state.peeked) return;
+      if (typeof Penney.onPeekRequest === "function") {
+        Penney.onPeekRequest(function () { showDeckPreview(); });
+      } else {
+        // 결제 게이트가 없는 환경(로컬 미리보기 등)에서는 무료로 바로 보여준다.
+        showDeckPreview();
+      }
+    });
+  }
+
+  function showDeckPreview() {
+    if (!el.deckPreviewOverlay || !state.deck || state.deck.length === 0) return;
+    state.peeked = true;
+    el.peekBtn.disabled = true;
+    el.peekBtn.classList.add("used");
+    Sfx.coin();
+
+    el.peekGrid.innerHTML = "";
+    state.deck.forEach(function (card) {
+      var chip = document.createElement("span");
+      chip.className = "chip " + (card.color === "red" ? "R" : "B");
+      el.peekGrid.appendChild(chip);
+    });
+
+    el.deckPreviewOverlay.classList.add("active");
+
+    var secondsLeft = 5;
+    el.peekTimer.textContent = String(secondsLeft);
+    var ticker = setInterval(function () {
+      secondsLeft -= 1;
+      if (secondsLeft <= 0) {
+        clearInterval(ticker);
+        el.deckPreviewOverlay.classList.remove("active");
+        coach("peekDone", "이제 패턴을 자유롭게 바꿀 수 있어요 — 방금 본 순서로 계산해보세요!", 4200);
+        return;
+      }
+      el.peekTimer.textContent = String(secondsLeft);
+    }, 1000);
+  }
+
   /* ================= 라운드 ================= */
   function startRound() {
-    state.deck = shuffle(buildDeck());
+    if (!state.deck || state.deck.length !== 52) state.deck = shuffle(buildDeck());
     state.revealed = [];
     state.segStart = 0;
     state.segSlots = [];

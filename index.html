@@ -1158,6 +1158,55 @@
   }
   @keyframes cgSpin { to { transform: rotate(360deg); } }
 
+  /* ===== 카드 순서 미리보기(코인) ===== */
+  .peek-row { margin: 14px 0 6px; display: flex; justify-content: center; }
+  .peek-btn {
+    display: inline-flex; align-items: center; gap: 7px;
+    background: linear-gradient(to bottom, rgba(212,175,55,0.16), rgba(212,175,55,0.05));
+    border: 1px solid rgba(212,175,55,0.55);
+    color: var(--gold-bright);
+    font-family: var(--sans); font-weight: 800; font-size: 13px;
+    padding: 9px 16px; border-radius: 999px; cursor: pointer;
+  }
+  .peek-btn:active { transform: translateY(1px); }
+  .peek-btn .pk-coin { font-size: 14px; }
+  .peek-btn:disabled, .peek-btn.used { opacity: 0.45; cursor: not-allowed; filter: grayscale(0.4); }
+
+  #deckPreviewOverlay {
+    position: fixed; inset: 0; z-index: 500;
+    background: rgba(6,8,16,0.94);
+    display: none; align-items: center; justify-content: center;
+    padding: 24px;
+  }
+  #deckPreviewOverlay.active { display: flex; }
+  .peek-card {
+    width: min(560px, 100%);
+    background: linear-gradient(to bottom, #141a33, #0b0e1a);
+    border: 1px solid rgba(212,175,55,0.5);
+    border-radius: 18px;
+    padding: 22px 20px 26px;
+    text-align: center;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.6);
+  }
+  .peek-title { font-family: var(--serif); font-size: 18px; font-weight: 900; color: var(--paper); margin-bottom: 4px; }
+  .peek-sub { font-size: 12.5px; color: var(--paper-dim); margin-bottom: 14px; }
+  .peek-warn { font-size: 12px; color: #ff8a80; margin-bottom: 14px; }
+  .peek-timer {
+    width: 54px; height: 54px; margin: 0 auto 14px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-family: var(--sans); font-weight: 900; font-size: 20px; color: var(--gold-bright);
+    border: 3px solid rgba(212,175,55,0.25);
+    border-top-color: var(--gold-bright);
+    transition: border-top-color 0.2s;
+  }
+  .peek-grid {
+    display: grid; grid-template-columns: repeat(13, 1fr);
+    gap: 4px; margin: 0 auto;
+    max-width: 480px;
+  }
+  .peek-grid .chip { width: 100%; aspect-ratio: 1; border-radius: 4px; }
+
   .coin-toast {
     position: fixed;
     left: 50%; top: 76px;
@@ -1304,6 +1353,21 @@
       </div>
       <div class="pick-warn" id="pickWarn"></div>
       <button class="main-btn" id="pickBtn" disabled>패턴을 모두 선택하세요</button>
+      <div class="peek-row">
+        <button class="peek-btn" id="peekBtn" type="button">
+          <span class="pk-coin">🪙</span><span>카드 순서 보기 (<span id="peekBtnPrice">50</span>코인, 5초)</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========== 카드 순서 미리보기 오버레이 ========== -->
+  <div id="deckPreviewOverlay">
+    <div class="peek-card">
+      <div class="peek-title">👀 카드 순서 공개!</div>
+      <div class="peek-sub">지금 화면은 <b>나</b>한테만 보여요 — 옆 사람이 못 보게 가려주세요</div>
+      <div class="peek-timer" id="peekTimer">5</div>
+      <div class="peek-grid" id="peekGrid"></div>
     </div>
   </div>
 
@@ -1399,9 +1463,40 @@
     </div>
   </div>
 
+  <!-- ========== 코인 결제 게이트 (카드 순서 보기) ========== -->
+  <div class="modal-overlay" id="peekGate">
+    <div class="coin-gate-card">
+      <button class="coin-gate-close" id="peekGateCloseBtn" aria-label="닫기">✕</button>
+      <div class="coin-gate-icon">👀</div>
+      <div class="coin-gate-title">카드 순서 보기</div>
+      <div class="coin-gate-price"><span id="peekGatePrice">50</span> 코인</div>
+
+      <div id="peekGateLogin">
+        <p class="coin-gate-sub">남은 카드 52장의 순서를 5초간 나한테만 보여줘요.<br>학번 4자리를 입력하세요.</p>
+        <input id="peekGateStudentId" class="coin-gate-input" inputmode="numeric" maxlength="4" placeholder="0000" autocomplete="off">
+        <div class="coin-gate-msg" id="peekGateLoginMsg"></div>
+        <button class="coin-gate-btn" id="peekGateLookupBtn">확인</button>
+      </div>
+
+      <div id="peekGateConfirm" hidden>
+        <div class="coin-gate-student" id="peekGateStudent"></div>
+        <div class="coin-gate-msg" id="peekGateConfirmMsg"></div>
+        <button class="coin-gate-btn" id="peekGatePayBtn">카드 순서 보기 <span id="peekGatePayPrice">50</span>코인 결제</button>
+        <button class="coin-gate-link" id="peekGateBackBtn">학번 다시 입력</button>
+      </div>
+
+      <div id="peekGateWaiting" hidden>
+        <div class="coin-gate-spinner"></div>
+        <p class="coin-gate-sub" id="peekGateWaitingMsg">나플라스 앱에서 결제를 승인해주세요…</p>
+        <button class="coin-gate-link" id="peekGateCancelBtn">결제 취소</button>
+      </div>
+    </div>
+  </div>
+
   <div class="coin-toast" id="coinToast"></div>
 
 <script src="game.js"></script>
 <script type="module" src="js/coin-gate.js"></script>
+<script type="module" src="js/peek-gate.js"></script>
 </body>
 </html>

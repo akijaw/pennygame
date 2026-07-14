@@ -14,6 +14,7 @@
 | `GAME_SIGNING_SECRET` | `openssl rand -base64 48` 결과 | 최소 32자 |
 | `ENTRY_COIN_PRICE` | `100` | 입장 참가비 |
 | `WIN_REWARD_COINS` | `200` | 승리 보상 |
+| `PEEK_COIN_PRICE` | `50` | 카드 순서 보기 1회 가격 |
 | `ALLOW_TEST_NICKNAME` | `false` | 로컬/프리뷰에서만 true |
 | `ALLOW_REAL_REWARDS` | `false` | 실제 보상 지급 스위치 (아래 참고) |
 

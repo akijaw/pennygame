@@ -1,46 +1,46 @@
 import {
-  COIN_PRICE,
+  PEEK_PRICE,
   PAYMENT_POLL_MS,
   getCoinStudent,
-  createPaymentRequest,
+  createPeekPayment,
   getPaymentStatus,
   cancelPaymentRequest,
-  requestReward,
 } from "./coin-api.js";
 
 const Penney = (window.Penney = window.Penney || {});
 
 const $ = (id) => document.getElementById(id);
 
-const gate = $("coinGate");
+const gate = $("peekGate");
 const els = {
-  close: $("coinGateCloseBtn"),
-  price: $("coinGatePrice"),
-  payPrice: $("coinGatePayPrice"),
-  login: $("coinGateLogin"),
-  studentId: $("coinGateStudentId"),
-  loginMsg: $("coinGateLoginMsg"),
-  lookup: $("coinGateLookupBtn"),
-  confirm: $("coinGateConfirm"),
-  student: $("coinGateStudent"),
-  confirmMsg: $("coinGateConfirmMsg"),
-  pay: $("coinGatePayBtn"),
-  back: $("coinGateBackBtn"),
-  waiting: $("coinGateWaiting"),
-  waitingMsg: $("coinGateWaitingMsg"),
-  cancel: $("coinGateCancelBtn"),
+  close: $("peekGateCloseBtn"),
+  price: $("peekGatePrice"),
+  payPrice: $("peekGatePayPrice"),
+  login: $("peekGateLogin"),
+  studentId: $("peekGateStudentId"),
+  loginMsg: $("peekGateLoginMsg"),
+  lookup: $("peekGateLookupBtn"),
+  confirm: $("peekGateConfirm"),
+  student: $("peekGateStudent"),
+  confirmMsg: $("peekGateConfirmMsg"),
+  pay: $("peekGatePayBtn"),
+  back: $("peekGateBackBtn"),
+  waiting: $("peekGateWaiting"),
+  waitingMsg: $("peekGateWaitingMsg"),
+  cancel: $("peekGateCancelBtn"),
   toast: $("coinToast"),
+  btnPrice: $("peekBtnPrice"),
 };
 
-// 게이트에 필요한 DOM이 없으면(예: 다른 페이지) 조용히 비활성화 — 게임은 무료로 동작.
+// 게이트에 필요한 DOM이 없으면 조용히 비활성화 — 이 경우 game.js가 무료 미리보기로 대체한다.
 if (gate && els.studentId) {
-  els.price.textContent = String(COIN_PRICE);
-  els.payPrice.textContent = String(COIN_PRICE);
+  els.price.textContent = String(PEEK_PRICE);
+  els.payPrice.textContent = String(PEEK_PRICE);
+  if (els.btnPrice) els.btnPrice.textContent = String(PEEK_PRICE);
 
-  let proceed = null;       // 결제 성공 시 게임으로 넘어가는 콜백
-  let student = null;       // { studentId, name, balance }
-  let trackingToken = null; // 승인 대기 중 결제 추적 토큰
-  let gameToken = null;     // 승인된 게임 토큰(보상 검증용)
+  let proceed = null;
+  let student = null;
+  let trackingToken = null;
   let pollTimer = null;
   let busy = false;
 
@@ -56,16 +56,24 @@ if (gate && els.studentId) {
 
   function openGate(onSuccess) {
     proceed = onSuccess;
-    student = null;
     trackingToken = null;
     busy = false;
-    els.studentId.value = "";
-    els.loginMsg.textContent = "";
     els.confirmMsg.textContent = "";
     els.confirmMsg.className = "coin-gate-msg";
-    showStep("login");
     gate.classList.add("active");
-    setTimeout(() => els.studentId.focus(), 50);
+
+    // 입장할 때 이미 학번을 확인했다면 다시 묻지 않고 바로 확인 화면으로.
+    const known = Penney.currentStudent;
+    if (known && known.studentId) {
+      student = { studentId: known.studentId, name: known.name, balance: null };
+      showStep("confirm");
+      refreshBalance();
+    } else {
+      els.studentId.value = "";
+      els.loginMsg.textContent = "";
+      showStep("login");
+      setTimeout(() => els.studentId.focus(), 50);
+    }
   }
 
   async function closeGate() {
@@ -77,6 +85,31 @@ if (gate && els.studentId) {
     }
     gate.classList.remove("active");
     proceed = null;
+  }
+
+  async function refreshBalance() {
+    if (!student) return;
+    els.confirmMsg.textContent = "잔액 확인 중…";
+    els.confirmMsg.className = "coin-gate-msg ok";
+    try {
+      const data = await getCoinStudent(student.studentId);
+      student.balance = Number(data.balance);
+      renderStudent();
+    } catch (err) {
+      els.confirmMsg.textContent = err.message || "지갑 정보를 불러오지 못했습니다.";
+      els.confirmMsg.className = "coin-gate-msg";
+      els.pay.disabled = true;
+    }
+  }
+
+  function renderStudent() {
+    els.student.innerHTML =
+      `<div class="cg-name">${escapeHtml(student.name)} <span style="color:var(--paper-dim);font-weight:400;">(${escapeHtml(student.studentId)})</span></div>` +
+      `<div class="cg-balance">보유 코인 <b>${Number(student.balance).toLocaleString()}</b></div>`;
+    const enough = student.balance >= PEEK_PRICE;
+    els.pay.disabled = !enough;
+    els.confirmMsg.textContent = enough ? "" : `잔액이 부족해요. 카드 순서 보기는 ${PEEK_PRICE}코인입니다.`;
+    els.confirmMsg.className = "coin-gate-msg";
   }
 
   async function lookup() {
@@ -93,13 +126,7 @@ if (gate && els.studentId) {
     try {
       const data = await getCoinStudent(id);
       student = { studentId: data.studentId, name: data.name, balance: Number(data.balance) };
-      els.student.innerHTML =
-        `<div class="cg-name">${escapeHtml(student.name)} <span style="color:var(--paper-dim);font-weight:400;">(${escapeHtml(student.studentId)})</span></div>` +
-        `<div class="cg-balance">보유 코인 <b>${student.balance.toLocaleString()}</b></div>`;
-      const enough = student.balance >= COIN_PRICE;
-      els.pay.disabled = !enough;
-      els.confirmMsg.textContent = enough ? "" : `잔액이 부족해요. 참가비는 ${COIN_PRICE}코인입니다.`;
-      els.confirmMsg.className = "coin-gate-msg";
+      renderStudent();
       els.loginMsg.textContent = "";
       showStep("confirm");
     } catch (err) {
@@ -118,9 +145,9 @@ if (gate && els.studentId) {
     els.confirmMsg.textContent = "결제 요청 중…";
     els.confirmMsg.className = "coin-gate-msg ok";
     try {
-      const res = await createPaymentRequest(student.studentId, COIN_PRICE, "entry");
-      if (res.status === "approved" && res.game_token) {
-        approved(res.game_token);
+      const res = await createPeekPayment(student.studentId);
+      if (res.status === "approved") {
+        approved();
         return;
       }
       trackingToken = res.tracking_token;
@@ -143,9 +170,9 @@ if (gate && els.studentId) {
       if (!trackingToken) { stopPoll(); return; }
       try {
         const res = await getPaymentStatus(trackingToken);
-        if (res.status === "approved" && res.game_token) {
+        if (res.status === "approved") {
           stopPoll();
-          approved(res.game_token);
+          approved();
         } else if (res.status === "rejected" || res.status === "canceled" || res.status === "expired") {
           stopPoll();
           trackingToken = null;
@@ -165,15 +192,11 @@ if (gate && els.studentId) {
     }, PAYMENT_POLL_MS);
   }
 
-  function approved(token) {
-    gameToken = token;
+  function approved() {
     trackingToken = null;
     stopPoll();
     gate.classList.remove("active");
-    toast(`입장 완료! 즐거운 게임 되세요 🎴`);
-    // 결제를 마친 학생 정보를 전역에 남겨 카드 순서 보기(peek-gate.js) 등
-    // 다른 결제 흐름에서 학번을 다시 묻지 않고 재사용할 수 있게 한다.
-    if (student) Penney.currentStudent = { studentId: student.studentId, name: student.name };
+    toast(`카드 순서 공개 <span class="ct-coin">-${PEEK_PRICE.toLocaleString()} 코인</span>`);
     const go = proceed;
     proceed = null;
     if (typeof go === "function") go();
@@ -194,6 +217,7 @@ if (gate && els.studentId) {
 
   let toastTimer = null;
   function toast(html) {
+    if (!els.toast) return;
     els.toast.innerHTML = html;
     els.toast.classList.add("show");
     clearTimeout(toastTimer);
@@ -204,30 +228,23 @@ if (gate && els.studentId) {
     return String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   }
 
-  // 이벤트 배선
   els.lookup.addEventListener("click", lookup);
   els.studentId.addEventListener("keydown", (e) => { if (e.key === "Enter") lookup(); });
   els.studentId.addEventListener("input", () => {
     els.studentId.value = els.studentId.value.replace(/\D/g, "").slice(0, 4);
   });
   els.pay.addEventListener("click", pay);
-  els.back.addEventListener("click", () => { els.loginMsg.textContent = ""; showStep("login"); setTimeout(() => els.studentId.focus(), 50); });
+  els.back.addEventListener("click", () => {
+    Penney.currentStudent = null; // 잘못된 학번이었을 수 있으니 재사용 캐시를 지운다
+    els.loginMsg.textContent = "";
+    showStep("login");
+    setTimeout(() => els.studentId.focus(), 50);
+  });
   els.cancel.addEventListener("click", cancel);
   els.close.addEventListener("click", closeGate);
 
   // 게임 훅 등록
-  Penney.onEntryRequest = function (onSuccess) {
+  Penney.onPeekRequest = function (onSuccess) {
     openGate(onSuccess);
-  };
-
-  Penney.onGameResult = async function ({ mode, winner }) {
-    if (mode !== "pve" || winner !== "player" || !gameToken) return;
-    try {
-      const res = await requestReward(gameToken, true);
-      const amount = Number(res.amount) || 0;
-      if (amount > 0) {
-        toast(`승리 보상 <span class="ct-coin">+${amount.toLocaleString()} 코인</span> 획득!`);
-      }
-    } catch { /* 보상 실패는 게임 흐름을 막지 않음 */ }
   };
 }

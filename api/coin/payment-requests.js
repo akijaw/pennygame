@@ -2,7 +2,7 @@ const { json } = require("../_http");
 const { naplaceFetch } = require("../_naplace");
 const { enforceJsonRequest, enforceRateLimit, enforceSameOrigin, issueGameToken, issueTrackingToken, paymentDetails } = require("../_security");
 
-// 페니의 게임: 입장 참가비만 결제합니다. (멀티 배팅 없음)
+// 페니의 게임: 입장 참가비(entry) 또는 카드 순서 보기(peek) 결제를 처리합니다.
 module.exports = async function handler(req, res) {
   if (req.method !== "POST") return json(res, 405, { message: "POST만 지원합니다." });
   if (!enforceRateLimit(req, res, "payment-create", 5, 60 * 1000)) return;
@@ -12,11 +12,17 @@ module.exports = async function handler(req, res) {
     const coinAmount = Number(amount);
     if (!/^\d{4}$/.test(String(studentId || ""))) return json(res, 400, { message: "올바른 4자리 학번을 입력하세요." });
     if (!Number.isInteger(coinAmount) || coinAmount < 0) return json(res, 400, { message: "결제 금액은 0 이상의 정수여야 합니다." });
-    if (purpose !== "entry") return json(res, 400, { message: "결제 목적이 올바르지 않습니다." });
-    const entryPrice = Number(process.env.ENTRY_COIN_PRICE || 100);
-    if (coinAmount !== entryPrice) return json(res, 400, { message: `참가비는 ${entryPrice}코인입니다.` });
+    if (purpose !== "entry" && purpose !== "peek") return json(res, 400, { message: "결제 목적이 올바르지 않습니다." });
 
-    const title = "페니의 게임 참가비";
+    let expectedPrice, title;
+    if (purpose === "entry") {
+      expectedPrice = Number(process.env.ENTRY_COIN_PRICE || 100);
+      title = "페니의 게임 참가비";
+    } else {
+      expectedPrice = Number(process.env.PEEK_COIN_PRICE || 50);
+      title = "페니의 게임 - 카드 순서 보기";
+    }
+    if (coinAmount !== expectedPrice) return json(res, 400, { message: `${purpose === "entry" ? "참가비" : "카드 순서 보기"}는 ${expectedPrice}코인입니다.` });
 
     // 0코인(테스트) 요청은 결제 서버를 거치지 않고 바로 승인 게임 토큰을 발급합니다.
     if (coinAmount === 0) {
