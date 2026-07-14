@@ -49,6 +49,7 @@
     peekBtnGame: document.getElementById("peekBtnGame"),
     deckPreviewOverlay: document.getElementById("deckPreviewOverlay"),
     peekTimer: document.getElementById("peekTimer"),
+    peekPhaseLabel: document.getElementById("peekPhaseLabel"),
     peekGrid: document.getElementById("peekGrid"),
     peekEdit: document.getElementById("peekEdit"),
     peekSlotBtns: Array.prototype.slice.call(document.querySelectorAll("#peekSlotRow .slot-btn")),
@@ -662,42 +663,72 @@
       chip.className = "chip " + (card.color === "red" ? "R" : "B");
       el.peekGrid.appendChild(chip);
     });
+    el.peekGrid.hidden = false;
 
     // 카드가 이미 넘어가고 있는 중(게임 화면)이면 그 자리에서 패턴을 바로 바꿀 수 있게 해준다.
-    var midRound = el.screenGame.classList.contains("active");
-    if (midRound && el.peekEdit) {
-      peekEditKey = myPatternKey();
-      renderPeekSlots(peekEditKey);
-      el.peekEdit.hidden = false;
-    } else if (el.peekEdit) {
-      peekEditKey = null;
-      el.peekEdit.hidden = true;
-    }
+    var midRound = el.screenGame.classList.contains("active") && !!el.peekEdit;
+    peekEditKey = midRound ? myPatternKey() : null;
+    if (el.peekEdit) el.peekEdit.hidden = true; // 1단계(보기)에서는 항상 숨김 — 보면서 수정 못 하게
 
     el.deckPreviewOverlay.classList.add("active");
+    runViewPhase();
+  }
 
-    var secondsLeft = midRound ? 8 : 5; // 게임 중엔 탭할 시간이 필요해서 조금 더 준다
+  // 1단계: 카드 배치만 5초간 보여주고, 수정은 못 하게 막는다.
+  function runViewPhase() {
+    var secondsLeft = 5;
+    if (el.peekPhaseLabel) el.peekPhaseLabel.textContent = "카드 순서를 기억하세요";
     el.peekTimer.textContent = String(secondsLeft);
     var ticker = setInterval(function () {
       secondsLeft -= 1;
       if (secondsLeft <= 0) {
         clearInterval(ticker);
-        el.deckPreviewOverlay.classList.remove("active");
-        updatePeekButtons();
         if (peekEditKey) {
-          // 바뀐 패턴을 화면(칩/진행도)에 반영
-          renderChips(el.playerChips, state.pattern);
-          renderChips(el.aiChips, state.aiPattern);
-          updateProgressChips();
-          peekEditKey = null;
-          coach("peekEdited", "패턴이 바뀌었어요! 다음 카드부터 새 패턴으로 판정돼요.", 4200);
+          runEditPhase();
         } else {
-          coach("peekDone", "이제 패턴을 자유롭게 바꿀 수 있어요 — 방금 본 순서로 계산해보세요!", 4200);
+          closePreview();
         }
         return;
       }
       el.peekTimer.textContent = String(secondsLeft);
     }, 1000);
+  }
+
+  // 2단계: 카드 배치를 완전히 가리고, 3초간만 패턴 수정을 허용한다.
+  function runEditPhase() {
+    el.peekGrid.hidden = true;
+    renderPeekSlots(peekEditKey);
+    el.peekEdit.hidden = false;
+    if (el.peekPhaseLabel) el.peekPhaseLabel.textContent = "지금 패턴을 바꾸세요! (카드는 더 안 보여요)";
+
+    var secondsLeft = 3;
+    el.peekTimer.textContent = String(secondsLeft);
+    var ticker = setInterval(function () {
+      secondsLeft -= 1;
+      if (secondsLeft <= 0) {
+        clearInterval(ticker);
+        closePreview();
+        return;
+      }
+      el.peekTimer.textContent = String(secondsLeft);
+    }, 1000);
+  }
+
+  function closePreview() {
+    el.deckPreviewOverlay.classList.remove("active");
+    el.peekGrid.hidden = false;
+    if (el.peekEdit) el.peekEdit.hidden = true;
+    updatePeekButtons();
+    if (peekEditKey) {
+      // 바뀐 패턴을 화면(칩/진행도)에 반영
+      renderChips(el.playerChips, state.pattern);
+      renderChips(el.aiChips, state.aiPattern);
+      updateProgressChips();
+      peekEditKey = null;
+      coach("peekEdited", "패턴이 바뀌었어요! 다음 카드부터 새 패턴으로 판정돼요.", 4200);
+    } else {
+      coach("peekDone", "이제 패턴을 자유롭게 바꿀 수 있어요 — 방금 본 순서로 계산해보세요!", 4200);
+    }
   }
 
   /* ================= 라운드 ================= */

@@ -1149,6 +1149,7 @@
   }
   .peek-title { font-family: var(--serif); font-size: 18px; font-weight: 900; color: var(--paper); margin-bottom: 4px; }
   .peek-sub { font-size: 12.5px; color: var(--paper-dim); margin-bottom: 14px; }
+  .peek-phase { font-size: 13px; font-weight: 800; color: var(--gold-bright); margin-bottom: 10px; }
   .peek-warn { font-size: 12px; color: #ff8a80; margin-bottom: 14px; }
   .peek-timer {
     width: 54px; height: 54px; margin: 0 auto 14px;
@@ -1164,6 +1165,7 @@
     gap: 4px; margin: 0 auto;
     max-width: 480px;
   }
+  .peek-grid[hidden] { display: none; }
   .peek-grid .chip { width: 100%; aspect-ratio: 1; border-radius: 4px; }
   .peek-edit { margin-top: 16px; padding-top: 14px; border-top: 1px dashed rgba(212,175,55,0.3); }
   .peek-edit-label { font-size: 12px; color: var(--gold-bright); font-weight: 800; margin-bottom: 8px; }
@@ -1293,6 +1295,7 @@
     <div class="peek-card">
       <div class="peek-title">👀 카드 순서 공개!</div>
       <div class="peek-sub">지금 화면은 <b>나</b>한테만 보여요 — 옆 사람이 못 보게 가려주세요</div>
+      <div class="peek-phase" id="peekPhaseLabel">카드 순서를 기억하세요</div>
       <div class="peek-timer" id="peekTimer">5</div>
       <div class="peek-grid" id="peekGrid"></div>
       <div class="peek-edit" id="peekEdit" hidden>
